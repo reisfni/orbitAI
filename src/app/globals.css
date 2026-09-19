@@ -24,3 +24,34 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* orbitAI canvas UI theme tokens */
+[data-oa-theme="dark"] {
+  --oa-bg: #0a0a0b;
+  --oa-dot: #27272a;
+  --oa-surface: #111113;
+  --oa-surface-2: #27272a;
+  --oa-surface-2-hover: #3f3f46;
+  --oa-border: rgba(63, 63, 70, 0.6);
+  --oa-text: #e4e4e7;
+  --oa-text-muted: #a1a1aa;
+  --oa-text-dim: #71717a;
+  --oa-hover: rgba(255, 255, 255, 0.05);
+  --oa-selected: rgba(255, 255, 255, 0.1);
+  --oa-overlay: rgba(0, 0, 0, 0.5);
+}
+
+[data-oa-theme="light"] {
+  --oa-bg: #f4f4f5;
+  --oa-dot: #d4d4d8;
+  --oa-surface: #ffffff;
+  --oa-surface-2: #e4e4e7;
+  --oa-surface-2-hover: #d4d4d8;
+  --oa-border: rgba(212, 212, 216, 0.8);
+  --oa-text: #18181b;
+  --oa-text-muted: #52525b;
+  --oa-text-dim: #71717a;
+  --oa-hover: rgba(0, 0, 0, 0.05);
+  --oa-selected: rgba(0, 0, 0, 0.08);
+  --oa-overlay: rgba(0, 0, 0, 0.3);
+}

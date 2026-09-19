@@ -36,36 +36,39 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--oa-overlay)]" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-lg border border-zinc-700/60 bg-[#18181b] p-5 shadow-2xl"
+        className="w-full max-w-sm rounded-lg border border-[var(--oa-border)] bg-[var(--oa-surface)] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-sm font-medium text-zinc-100">Settings</h2>
-        <p className="mb-4 text-xs text-zinc-400">
+        <h2 className="mb-1 text-sm font-medium text-[var(--oa-text)]">Settings</h2>
+        <p className="mb-4 text-xs text-[var(--oa-text-muted)]">
           Used to run the Claude Code and OpenCode agent presets. Stored locally in{" "}
-          <code className="rounded bg-black/40 px-1 py-0.5">.orbitai/settings.json</code>, never committed.
+          <code className="rounded bg-[var(--oa-hover)] px-1 py-0.5">.orbitai/settings.json</code>, never committed.
         </p>
 
-        <label className="mb-1 block text-xs text-zinc-400">Anthropic API key</label>
+        <label className="mb-1 block text-xs text-[var(--oa-text-muted)]">Anthropic API key</label>
         <input
           type="password"
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
           placeholder={hasKey ? "•••••••••••••••• (saved)" : "sk-ant-..."}
-          className="mb-3 w-full rounded border border-zinc-700 bg-black/40 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+          className="mb-3 w-full rounded border border-[var(--oa-border)] bg-[var(--oa-hover)] px-2 py-1.5 text-sm text-[var(--oa-text)] outline-none focus:border-[var(--oa-text-dim)]"
         />
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-[var(--oa-text-dim)]">
             {hasKey === null ? "" : hasKey ? "A key is currently saved." : "No key saved yet."}
           </span>
           <div className="flex gap-2">
-            <button className="rounded px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700" onClick={onClose}>
+            <button
+              className="rounded px-3 py-1.5 text-xs text-[var(--oa-text-muted)] hover:bg-[var(--oa-surface-2-hover)]"
+              onClick={onClose}
+            >
               Close
             </button>
             <button
-              className="rounded bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-white disabled:opacity-50"
+              className="rounded bg-[var(--oa-text)] px-3 py-1.5 text-xs font-medium text-[var(--oa-surface)] hover:opacity-90 disabled:opacity-50"
               onClick={save}
               disabled={status === "saving" || keyInput.length === 0}
             >
