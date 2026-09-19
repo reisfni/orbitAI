@@ -1,27 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { PaneState } from "@/lib/types";
-import PaneWindow from "./PaneWindow";
-import TerminalPane from "@/components/panes/terminal/TerminalPane";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ReactFlow,
+  Background,
+  BackgroundVariant,
+  type Node,
+  type NodeChange,
+  type NodeTypes,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import type { PaneState, PaneType } from "@/lib/types";
+import PaneNode, { type PaneNodeData } from "./PaneNode";
 import SettingsModal from "./SettingsModal";
 
 const STORAGE_KEY = "orbitai:canvas-layout";
 
+const nodeTypes: NodeTypes = { paneNode: PaneNode };
+
 interface PanePreset {
   label: string;
   title: string;
+  type: PaneType;
   command?: string;
 }
 
 const PANE_PRESETS: PanePreset[] = [
-  { label: "+ Terminal", title: "Terminal" },
-  { label: "+ Claude Code", title: "Claude Code", command: "claude" },
-  { label: "+ OpenCode", title: "OpenCode", command: "opencode" },
+  { label: "+ Terminal", title: "Terminal", type: "terminal" },
+  { label: "+ Claude Code", title: "Claude Code", type: "terminal", command: "claude" },
+  { label: "+ OpenCode", title: "OpenCode", type: "terminal", command: "opencode" },
+  { label: "+ Files", title: "Files", type: "file-diff" },
 ];
 
 function defaultPanes(): PaneState[] {
-  return [{ id: crypto.randomUUID(), type: "terminal", title: "Terminal", x: 120, y: 120, width: 640, height: 400, zIndex: 1 }];
+  return [
+    { id: crypto.randomUUID(), type: "terminal", title: "Terminal", x: 120, y: 120, width: 640, height: 400 },
+  ];
 }
 
 function loadLayout(): PaneState[] {
@@ -39,10 +53,7 @@ function loadLayout(): PaneState[] {
 export default function Canvas() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const panRef = useRef<{ startX: number; startY: number; viewX: number; viewY: number } | null>(null);
-  const maxZ = useRef(1);
 
   useEffect(() => {
     // One-time sync from localStorage on mount; SSR has no access to it, so
@@ -57,102 +68,86 @@ export default function Canvas() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(panes));
   }, [panes, hydrated]);
 
-  const focusPane = useCallback((id: string) => {
-    maxZ.current += 1;
-    const z = maxZ.current;
-    setPanes((prev) => prev.map((p) => (p.id === id ? { ...p, zIndex: z } : p)));
-  }, []);
-
-  const movePane = useCallback((id: string, x: number, y: number) => {
-    setPanes((prev) => prev.map((p) => (p.id === id ? { ...p, x, y } : p)));
+  const closePane = useCallback((id: string) => {
+    setPanes((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const resizePane = useCallback((id: string, width: number, height: number) => {
     setPanes((prev) => prev.map((p) => (p.id === id ? { ...p, width, height } : p)));
   }, []);
 
-  const closePane = useCallback((id: string) => {
-    setPanes((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
   const addPane = useCallback((preset: PanePreset) => {
-    maxZ.current += 1;
     setPanes((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        type: "terminal",
+        type: preset.type,
         title: preset.title,
         command: preset.command,
         x: 120 + prev.length * 24,
         y: 120 + prev.length * 24,
         width: 640,
         height: 400,
-        zIndex: maxZ.current,
       },
     ]);
   }, []);
 
-  const onBackgroundPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (e.button !== 0) return;
-      panRef.current = { startX: e.clientX, startY: e.clientY, viewX: view.x, viewY: view.y };
-      const onPointerMove = (ev: PointerEvent) => {
-        if (!panRef.current) return;
-        const dx = ev.clientX - panRef.current.startX;
-        const dy = ev.clientY - panRef.current.startY;
-        setView((v) => ({ ...v, x: panRef.current!.viewX + dx, y: panRef.current!.viewY + dy }));
-      };
-      const onPointerUp = () => {
-        panRef.current = null;
-        window.removeEventListener("pointermove", onPointerMove);
-        window.removeEventListener("pointerup", onPointerUp);
-      };
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointerup", onPointerUp);
-    },
-    [view.x, view.y]
+  const nodes: Node<PaneNodeData>[] = useMemo(
+    () =>
+      panes.map((pane) => ({
+        id: pane.id,
+        type: "paneNode",
+        position: { x: pane.x, y: pane.y },
+        width: pane.width,
+        height: pane.height,
+        style: { width: pane.width, height: pane.height },
+        dragHandle: ".pane-drag-handle",
+        data: { pane, onClose: closePane, onResize: resizePane },
+      })),
+    [panes, closePane, resizePane]
   );
+
+  const onNodesChange = useCallback((changes: NodeChange<Node<PaneNodeData>>[]) => {
+    setPanes((prev) => {
+      const byId = new Map(prev.map((p) => [p.id, p]));
+      for (const change of changes) {
+        if (change.type === "position" && change.position) {
+          const pane = byId.get(change.id);
+          if (pane) byId.set(change.id, { ...pane, x: change.position.x, y: change.position.y });
+        }
+      }
+      return prev.map((p) => byId.get(p.id) ?? p);
+    });
+  }, []);
 
   if (!hydrated) return null;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0b]">
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: "radial-gradient(circle, #27272a 1px, transparent 1px)",
-          backgroundSize: `${24 * view.scale}px ${24 * view.scale}px`,
-          backgroundPosition: `${view.x}px ${view.y}px`,
-        }}
-        onPointerDown={onBackgroundPointerDown}
-      />
-
-      <div
-        className="absolute left-0 top-0 h-full w-full"
-        style={{ transform: `translate(${view.x}px, ${view.y}px)`, transformOrigin: "0 0" }}
+    <div className="relative h-screen w-screen bg-[#0a0a0b]">
+      <ReactFlow
+        nodes={nodes}
+        onNodesChange={onNodesChange}
+        nodeTypes={nodeTypes}
+        elevateNodesOnSelect
+        minZoom={0.2}
+        maxZoom={2}
+        proOptions={{ hideAttribution: true }}
       >
-        {panes.map((pane) => (
-          <PaneWindow key={pane.id} pane={pane} onMove={movePane} onResize={resizePane} onFocus={focusPane} onClose={closePane}>
-            {pane.type === "terminal" && (
-              <TerminalPane paneId={pane.id} width={pane.width} height={pane.height} command={pane.command} />
-            )}
-          </PaneWindow>
-        ))}
-      </div>
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#27272a" />
+      </ReactFlow>
 
-      <div className="absolute left-4 top-4 z-50 flex gap-2">
+      <div className="pointer-events-none absolute left-4 top-4 z-50 flex gap-2">
         {PANE_PRESETS.map((preset) => (
           <button
             key={preset.label}
-            className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
+            className="pointer-events-auto rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
             onClick={() => addPane(preset)}
           >
             {preset.label}
           </button>
         ))}
         <button
-          className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
+          className="pointer-events-auto rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
           onClick={() => setSettingsOpen(true)}
         >
           ⚙ Settings
