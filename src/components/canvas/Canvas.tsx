@@ -4,8 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PaneState } from "@/lib/types";
 import PaneWindow from "./PaneWindow";
 import TerminalPane from "@/components/panes/terminal/TerminalPane";
+import SettingsModal from "./SettingsModal";
 
 const STORAGE_KEY = "orbitai:canvas-layout";
+
+interface PanePreset {
+  label: string;
+  title: string;
+  command?: string;
+}
+
+const PANE_PRESETS: PanePreset[] = [
+  { label: "+ Terminal", title: "Terminal" },
+  { label: "+ Claude Code", title: "Claude Code", command: "claude" },
+  { label: "+ OpenCode", title: "OpenCode", command: "opencode" },
+];
 
 function defaultPanes(): PaneState[] {
   return [{ id: crypto.randomUUID(), type: "terminal", title: "Terminal", x: 120, y: 120, width: 640, height: 400, zIndex: 1 }];
@@ -27,6 +40,7 @@ export default function Canvas() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const panRef = useRef<{ startX: number; startY: number; viewX: number; viewY: number } | null>(null);
   const maxZ = useRef(1);
 
@@ -61,14 +75,15 @@ export default function Canvas() {
     setPanes((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const addTerminalPane = useCallback(() => {
+  const addPane = useCallback((preset: PanePreset) => {
     maxZ.current += 1;
     setPanes((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
         type: "terminal",
-        title: "Terminal",
+        title: preset.title,
+        command: preset.command,
         x: 120 + prev.length * 24,
         y: 120 + prev.length * 24,
         width: 640,
@@ -119,19 +134,32 @@ export default function Canvas() {
       >
         {panes.map((pane) => (
           <PaneWindow key={pane.id} pane={pane} onMove={movePane} onResize={resizePane} onFocus={focusPane} onClose={closePane}>
-            {pane.type === "terminal" && <TerminalPane paneId={pane.id} width={pane.width} height={pane.height} />}
+            {pane.type === "terminal" && (
+              <TerminalPane paneId={pane.id} width={pane.width} height={pane.height} command={pane.command} />
+            )}
           </PaneWindow>
         ))}
       </div>
 
       <div className="absolute left-4 top-4 z-50 flex gap-2">
+        {PANE_PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
+            onClick={() => addPane(preset)}
+          >
+            {preset.label}
+          </button>
+        ))}
         <button
           className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 shadow hover:bg-zinc-700"
-          onClick={addTerminalPane}
+          onClick={() => setSettingsOpen(true)}
         >
-          + Terminal
+          ⚙ Settings
         </button>
       </div>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

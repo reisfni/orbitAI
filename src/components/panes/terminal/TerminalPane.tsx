@@ -9,9 +9,10 @@ interface TerminalPaneProps {
   paneId: string;
   width: number;
   height: number;
+  command?: string;
 }
 
-export default function TerminalPane({ paneId, width, height }: TerminalPaneProps) {
+export default function TerminalPane({ paneId, width, height, command }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -35,7 +36,8 @@ export default function TerminalPane({ paneId, width, height }: TerminalPaneProp
     fitAddonRef.current = fitAddon;
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${window.location.host}/api/ws/terminal`);
+    const params = command ? `?command=${encodeURIComponent(command)}` : "";
+    const ws = new WebSocket(`${protocol}://${window.location.host}/api/ws/terminal${params}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -62,7 +64,7 @@ export default function TerminalPane({ paneId, width, height }: TerminalPaneProp
       ws.close();
       term.dispose();
     };
-  }, [paneId]);
+  }, [paneId, command]);
 
   useEffect(() => {
     fitAddonRef.current?.fit();
